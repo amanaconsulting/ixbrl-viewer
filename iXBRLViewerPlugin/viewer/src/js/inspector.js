@@ -1255,7 +1255,10 @@ export class Inspector {
         else {
             this._currentItemList = [];
             for (const itemId of itemIdList) {
-                this._currentItemList.push(this._reportSet.getItemById(itemId));
+                const f = this._reportSet.getItemById(itemId);
+                if (f !== undefined) { // We can have broken facts in the viewer: ignore them
+                    this._currentItemList.push(f);
+                }
             }
         }
         this.switchItem(vuid, noScroll);

@@ -985,9 +985,10 @@ export class Viewer {
                     // highlight color for an element that is double tagged in a
                     // table cell.
                     const ixn = $(this).data('ivids').map(id => viewer._ixNodeMap[id]).filter(ixn => !ixn.footnote)[0];
-                    if (ixn != undefined) {
+                    const fact = reportSet.getItemById(ixn.id);
+                    if (ixn != undefined && fact != undefined) {
                         const elements = viewer.elementsForItemIds(ixn.chainIXIds());
-                        const i = groups[reportSet.getItemById(ixn.id).conceptQName().prefix];
+                        const i = groups[fact.conceptQName().prefix];
                         if (i !== undefined) {
                             elements.addClass("ixbrl-highlight-" + i);
                         }
