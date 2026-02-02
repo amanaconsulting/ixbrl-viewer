@@ -1,6 +1,4 @@
-# AMANA Fork of the Workiva iXBRL Viewer
-
-![ixbrl-viewer](https://raw.githubusercontent.com/Arelle/ixbrl-viewer/master/examples/ixbrl-viewer-demo.gif)
+# AMANA Fork of the Arelle iXBRL Viewer
 
 The [Arelle](https://arelle.org/) iXBRL Viewer allows [Inline XBRL](https://www.xbrl.org/ixbrl) (or iXBRL) reports to be
 viewed interactively in a web browser.  The viewer allows users to access the tagged XBRL data embedded in an iXBRL
