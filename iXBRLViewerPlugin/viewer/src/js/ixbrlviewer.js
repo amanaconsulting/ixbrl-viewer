@@ -351,7 +351,7 @@ export class iXBRLViewer {
             }
 
             iv.isPDF = iv._detectPDF(ownerDocument);
-            var useFrames = iv._inIframe() || !iv.isPDF;
+            var useFrames = iv._inIframe() || !iv.isPDF || reportSet.isMultiDocumentViewer();
             if (!stubViewer) {
                 /* AMANA: In the chromium, pdf files do not use frames in case of content-visibility CSS style  */
                 iframes = $(iv._reparentDocument(ownerDocument, useFrames));

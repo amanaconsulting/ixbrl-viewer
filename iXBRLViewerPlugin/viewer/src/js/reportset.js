@@ -19,6 +19,7 @@ export class ReportSet {
         this._data = data;
         this._ixNodeMap = {};
         this.viewerOptions = new ViewerOptions()
+        this._reportFiles = this._calculateReportFiles();
     }
 
     /*
@@ -212,13 +213,30 @@ export class ReportSet {
      * Returns a flat list of source files for all reports in the report set.
      * Each entry in the list is an object with:
      *   file - name of the file
+     *   name - display name of the file (same as file for string entries, or from object's name property)
      *   index - index of the report that it is for
+     * Supports docSetFiles entries as either strings or objects with { name, file } structure.
      * May return an empty list for single file, non-stub viewers.
      * @return {List}   A list of objects describing each file
      */
     reportFiles() {
+        return this._reportFiles;
+    }
+
+    _calculateReportFiles() {
         const sourceReports = this._data.sourceReports ?? [ this._data ];
-        return sourceReports.map((x, n) => (x.docSetFiles ?? []).map(file => ({ index: n, file: file }))).flat();
+        return sourceReports.map((x, n) => {
+            const docSetFiles = x.docSetFiles ?? [];
+            if (docSetFiles.length === 0) {
+                return [];
+            }
+            const targetReports = x.targetReports ?? [];
+            return docSetFiles.map((file, i) => ({
+                index: n,
+                file: file,
+                name: targetReports[i]?.name ?? file
+            }));
+        }).flat();
     }
 
     /**
@@ -238,22 +256,26 @@ export class ReportSet {
     }
 
     getAnchors(concept) {
-        var res = [];
-        var report = this.reports[0];
+        const res = [];
+        const report = this.reports[0];
         if (this.usesAnchoring()) {
-            $.each(this._data.rels["w-n"], function (elr, rr) {
-                $.each(rr, function(c, r) {
-                    if (concept.name == c) {
-                        $.each(r, function(i, v) { 
-                            res.push({concept: report.getConcept(v.t), wide: 0});
-                        });
-                    } else 
-                        $.each(r, function(i, v) {
-                            if (v.t == concept.name)
-                                res.push({concept: report.getConcept(c), wide: 1});
-                        });
+            for (const reportData of this.reportsData()) {
+                const wnRels = reportData.rels?.["w-n"];
+                if (!wnRels) continue;
+                $.each(wnRels, function (elr, rr) {
+                    $.each(rr, function(c, r) {
+                        if (concept.name == c) {
+                            $.each(r, function(i, v) {
+                                res.push({concept: report.getConcept(v.t), wide: 0});
+                            });
+                        } else
+                            $.each(r, function(i, v) {
+                                if (v.t == concept.name)
+                                    res.push({concept: report.getConcept(c), wide: 1});
+                            });
+                    });
                 });
-            });
+            }
         }
         return res;
     }
