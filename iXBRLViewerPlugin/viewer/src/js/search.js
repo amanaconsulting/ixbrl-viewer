@@ -13,42 +13,49 @@ export class ReportSearch {
         var dims = {};
         var facts = this._reportSet.facts();
         this.periods = {};
-        for (var i = 0; i < facts.length; i++) {
-            var f = facts[i];
-            var doc = { "id": f.vuid };
-            var l = f.getLabel("std");
-            doc.concept = f.conceptQName().localname;
-            doc.doc = f.getLabel("doc");
-            doc.date = f.periodTo();
-            doc.startDate = f.periodFrom();
-            var dims = f.dimensions();
-            for (var d in dims) {
-                if (f.report.getConcept(d).isTypedDimension()) {
-                    if (dims[d] !== null) {
-                        l += " " + dims[d];
+        // Add hidden facts to index later, so that they appear later in the
+        // default search
+        for (const hidden of [false, true]) {
+            for (var i = 0; i < facts.length; i++) {
+                var f = facts[i];
+                if (f.isHidden() !== hidden) {
+                    continue;
+                }
+                var doc = { "id": f.vuid };
+                var l = f.getLabel("std");
+                doc.concept = f.conceptQName().localname;
+                doc.doc = f.getLabel("doc");
+                doc.date = f.periodTo();
+                doc.startDate = f.periodFrom();
+                var dims = f.dimensions();
+                for (var d in dims) {
+                    if (f.report.getConcept(d).isTypedDimension()) {
+                        if (dims[d] !== null) {
+                            l += " " + dims[d];
+                        }
+                    }
+                    else {
+                        l += " " + f.report.getLabel(dims[d], "std");
                     }
                 }
-                else {
-                    l += " " + f.report.getLabel(dims[d], "std");
+                doc.label = l;
+                doc.ref = f.concept().referenceValuesAsString();
+                const wider = f.widerConcepts();
+                if (wider.length > 0) {
+                    doc.widerConcept = f.report.qname(wider[0]).localname;
+                    doc.widerLabel = f.report.getLabel(wider[0], "std");
+                    doc.widerDoc = f.report.getLabel(wider[0], "doc");
                 }
-            }
-            doc.label = l;
-            doc.ref = f.concept().referenceValuesAsString();
-            const wider = f.widerConcepts();
-            if (wider.length > 0) {
-                doc.widerConcept = f.report.qname(wider[0]).localname;
-                doc.widerLabel = f.report.getLabel(wider[0], "std");
-                doc.widerDoc = f.report.getLabel(wider[0], "doc");
-            }
-            docs.push(doc);
+                docs.push(doc);
 
-            var p = f.period();
-            if (p) {
-                this.periods[p.key()] = p.toString();
-            }
+                var p = f.period();
+                if (p) {
+                    this.periods[p.key()] = p.toString();
+                }
 
-            if (i % 100 === 0) {
-                yield;
+                if (i % 100 === 0) {
+                    yield;
+                }
             }
         }
         const builder = new lunr.Builder();
@@ -86,7 +93,11 @@ export class ReportSearch {
     }
 
     visibilityFilter(s, item) {
-        return item.isHidden() ? s.showHiddenFacts : s.showVisibleFacts;
+        return (
+                s.visibilityFilter === '*' ||
+                s.visibilityFilter === 'visible' && !item.isHidden() ||
+                s.visibilityFilter === 'hidden' && item.isHidden()
+        )
     }
 
     periodFilter(s, item) {
@@ -138,6 +149,14 @@ export class ReportSearch {
         );
     }
 
+    dataTypesFilter(s, item) {
+        return (
+            s.dataTypesFilter == null ||
+            s.dataTypesFilter.length === 0 ||
+            s.dataTypesFilter.some(p => item.concept().dataType()?.name === p)
+        );
+    }
+
     unitsFilter(s, item) {
         return (
                 s.unitsFilter.length === 0 ||
@@ -159,6 +178,13 @@ export class ReportSearch {
         );
     }
 
+    mandatoryFactFilter(s, item) {
+        if(!s.showMandatoryFacts) {
+            return true;
+        }
+        return item.isMandatory();
+    }
+
     search(s) {
         if (!this.ready) {
             return;
@@ -175,9 +201,11 @@ export class ReportSearch {
             this.factValueFilter,
             this.calculationsFilter,
             this.namespacesFilter,
+            this.dataTypesFilter,
             this.unitsFilter,
             this.scalesFilter,
-            this.targetDocumentFilter
+            this.targetDocumentFilter,
+            this.mandatoryFactFilter
         ];
 
         rr.forEach((r,_) => {

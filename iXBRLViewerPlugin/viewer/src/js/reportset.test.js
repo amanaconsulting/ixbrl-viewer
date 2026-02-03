@@ -240,8 +240,8 @@ describe("Multi report - ELR labels", () => {
 
     test("Present", () => {
         // Role 1 only has a label in report 1
-        expect(testReportSet.reports[0].getRoleLabel("role1")).toBe("Role 1 Label");
-        expect(testReportSet.reports[1].getRoleLabel("role1")).toBe("https://www.example.com/role1");
+        expect(testReportSet.reports[0].getRoleLabelOrURI("role1")).toBe("Role 1 Label");
+        expect(testReportSet.reports[1].getRoleLabelOrURI("role1")).toBe("https://www.example.com/role1");
     });
 });
 
@@ -265,7 +265,8 @@ describe("Multi report - doc set files", () => {
         data.sourceReports[1].docSetFiles = ["c.html", "d.html"];
         const testReportSet = new ReportSet(data);
         testReportSet._initialize();
-        expect(testReportSet.reportFiles()).toStrictEqual([{"index": 0, "file": "a.html"}, {"index": 0, "file": "b.html"}, {"index": 1, "file": "c.html"}, {"index": 1, "file": "d.html"}]);
+        // AMANA extension: reportFiles() includes name property
+        expect(testReportSet.reportFiles()).toStrictEqual([{"index": 0, "file": "a.html", "name": "a.html"}, {"index": 0, "file": "b.html", "name": "b.html"}, {"index": 1, "file": "c.html", "name": "c.html"}, {"index": 1, "file": "d.html", "name": "d.html"}]);
     });
     test("Repeated document set", () => {
         const data = multiReportTestData(false);
@@ -273,7 +274,8 @@ describe("Multi report - doc set files", () => {
         data.sourceReports[1].docSetFiles = ["a.html", "b.html"];
         const testReportSet = new ReportSet(data);
         testReportSet._initialize();
-        expect(testReportSet.reportFiles()).toStrictEqual([{"index": 0, "file": "a.html"}, {"index": 0, "file": "b.html"}, {"index": 1, "file": "a.html"}, {"index": 1, "file": "b.html"}]);
+        // AMANA extension: reportFiles() includes name property
+        expect(testReportSet.reportFiles()).toStrictEqual([{"index": 0, "file": "a.html", "name": "a.html"}, {"index": 0, "file": "b.html", "name": "b.html"}, {"index": 1, "file": "a.html", "name": "a.html"}, {"index": 1, "file": "b.html", "name": "b.html"}]);
     });
 });
 
@@ -333,7 +335,7 @@ describe("ELR labels", () => {
     testReportSet._initialize();
 
     test("Present", () => {
-        expect(testReportSet.reports[0].getRoleLabel("role1")).toBe("Role 1 Label");
+        expect(testReportSet.reports[0].getRoleLabelOrURI("role1")).toBe("Role 1 Label");
     });
 });
 

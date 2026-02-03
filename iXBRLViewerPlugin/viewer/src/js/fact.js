@@ -9,7 +9,7 @@ import Decimal from "decimal.js";
 import { Interval } from './interval.js';
 
 export class Fact {
-    
+
     constructor(report, factId, factData) {
         this.f = factData;
         this.ixNode = report.reportSet.getIXNodeForItemId(factId);
@@ -23,20 +23,36 @@ export class Fact {
         return localId(this.vuid);
     }
 
+    isMandatory() {
+        return this.f.a.m
+    }
+
     getLabel(rolePrefix, withPrefix) {
         return this.report.getLabel(this.f.a.c, rolePrefix, withPrefix);
+    }
+
+    getLabelAndLang(rolePrefix, withPrefix) {
+        return this.report.getLabelAndLang(this.f.a.c, rolePrefix, withPrefix);
     }
 
     getLabelOrName(rolePrefix, withPrefix) {
         return this.report.getLabelOrName(this.f.a.c, rolePrefix, withPrefix);
     }
 
+    getLabelOrNameAndLang(rolePrefix, withPrefix) {
+        return this.report.getLabelOrNameAndLang(this.f.a.c, rolePrefix, withPrefix);
+    }
+
     conceptName() {
         return this.f.a.c;
     }
 
+    conceptDisplayName() {
+        return this.report.reportSet.taxonomyNamer.convertQName(this.conceptQName());
+    }
+
     concept() {
-        return this.report.getConcept(this.f.a.c); 
+        return this.report.getConcept(this.f.a.c);
     }
 
     conceptQName() {
@@ -63,14 +79,14 @@ export class Fact {
     value() {
         return this.f.v;
     }
-    
-    
+
+    // {{ AMANA extension: validation results
     hasValidationResults() {
         return "zv" in this.f;
     }
 
     getValidationResults() {
-        return this.f.zv.map( function (v) { 
+        return this.f.zv.map( function (v) {
             return { ruleId: v["ri"], rule: v["r"], message: v["t"], severity: v["i"] };
         });
     }
@@ -78,13 +94,21 @@ export class Fact {
     tableHashCode() {
         if ("zr" in this.f) {
             return this.f.zr;
-        }    
+        }
+    }
+    // }}
+
+    readableValue(val) {
+        return this.readableValueHTML(val).textContent;
     }
 
-    readableValue() {
-        let v = this.f.v;
+    readableValueHTML(val) {
+        let v = val === undefined ? this.f.v : val;
+        const span = document.createElement("span");
+        span.classList.add("fact-value");
         if (this.isInvalidIXValue()) {
-            v = "Invalid value";
+            span.classList.add("fact-value-invalid");
+            span.append(document.createTextNode("Invalid value"));
         }
         else if (this.isNumeric()) {
             const d = this.decimals();
@@ -96,14 +120,17 @@ export class Fact {
                 formattedNumber = formatNumber(v, d);
             }
             if (this.isMonetaryValue()) {
-                v = this.unitLabel() + " " + formattedNumber;
+                span.append(this.unitLabelHTML());
+                span.append(document.createTextNode(" " + formattedNumber));
             }
             else {
-                v = formattedNumber + " " + this.unitLabel();
+                span.append(document.createTextNode(formattedNumber + " "));
+                span.append(this.unitLabelHTML());
             }
         }
         else if (this.isNil()) {
-            v = "nil";
+            span.classList.add("fact-value-nil");
+            span.append(document.createTextNode("nil"));
         }
         else if (this.isTextBlock()) {
             const html = $("<div>").append($($.parseHTML(v, null, false)));
@@ -115,6 +142,7 @@ export class Fact {
                 .prepend(document.createTextNode(' '));
             /* Replace runs of whitespace (including nbsp) with a single space */
             v = html.text().replace(/[\u00a0\s]+/g, " ").trim();
+            span.append(document.createTextNode(v));
         }
         else if (this.isEnumeration()) {
             const labels = [];
@@ -122,8 +150,12 @@ export class Fact {
                 labels.push(this.report.getLabelOrName(qn, 'std'));
             }
             v = labels.join(', ');
+            span.append(document.createTextNode(v));
         }
-        return v;
+        else {
+            span.append(document.createTextNode(v));
+        }
+        return span;
     }
 
     /**
@@ -147,6 +179,10 @@ export class Fact {
      */
     unitLabel() {
         return this.unit()?.label() ?? i18next.t("factDetails.noUnit");
+    }
+
+    unitLabelHTML() {
+        return this.unit()?.html() ?? document.createTextNode(i18next.t("factDetails.noUnit"));
     }
 
     getConceptPrefix() {
@@ -197,10 +233,23 @@ export class Fact {
         return this.concept().isTextBlock();
     }
 
+    /**
+     * Get all defined Aspects (sorted by aspect name).
+     *
+     * @returns {Aspect[]} An array of instantiated Aspect objects.
+     */
     aspects() {
-        return Object.keys(this.f.a).map(k => this.aspect(k));
+        return Object.keys(this.f.a)
+            .map(k => this.aspect(k))
+            .sort((a, b) => a.compareTo(b));
     }
 
+    /**
+     * Retrieves or lazily creates an Aspect instance for the given aspect key.
+     *
+     * @param {string} a - The aspect key to retrieve or create.
+     * @returns {Aspect|undefined} The Aspect instance associated with the key, or undefined if not defined in `this.f.a`.
+     */
     aspect(a) {
         if (this._aspects === undefined) {
             this._aspects = {}
@@ -392,13 +441,6 @@ export class Fact {
 
     isCompleteDuplicate(other) {
         return this.value() === other.value() && this.decimals() === other.decimals();
-    }
-
-    /*
-     * Facts that are the source of relationships to this fact.
-     */
-    addLinkedFact(f) {
-        this.linkedFacts.push(f);
     }
 
     /*

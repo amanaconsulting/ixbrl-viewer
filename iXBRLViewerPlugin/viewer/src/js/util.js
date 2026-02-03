@@ -2,18 +2,38 @@
 
 import moment from "moment";
 import Decimal from "decimal.js";
-import i18next from "i18next";
-
 
 export const SHOW_FACT = 'SHOW_FACT';
 
 export const NAMESPACE_ISO4217 = 'http://www.xbrl.org/2003/iso4217';
+export const NAMESPACE_XBRLI = 'http://www.xbrl.org/2003/instance';
 
 export const CALC_ARCROLE = "calc";
 export const CALC11_ARCROLE = "calc11";
 
+export const GLOSSARY_URL = "https://xbrl.org/glossary/";
+
 // The number of distinct highlight colors defined in inspector.less
-export const HIGHLIGHT_COLORS = 3;
+export const HIGHLIGHT_COLORS = 6;
+
+// Feature names
+export const FEATURE_GUIDE_LINK = 'guide_link';
+export const FEATURE_HOME_LINK_LABEL = 'home_link_label';
+export const FEATURE_HOME_LINK_URL = 'home_link_url';
+export const FEATURE_REVIEW = 'review';
+export const FEATURE_SUPPORT_LINK = 'support_link';
+export const FEATURE_SURVEY_LINK = 'survey_link';
+export const FEATURE_SEARCH_ON_STARTUP = 'search_on_startup';
+export const FEATURE_HIGHLIGHT_FACTS_ON_STARTUP = 'highlight_facts_on_startup';
+export const FEATURE_HIDE_CALCULATION_MODE_OPTION = 'hide_calculation_mode_option';
+
+export const IXBRL_VIEWER_DATASET_PREFIX = 'ixbrlViewer';
+
+export const STORAGE_APP_LANGUAGE = "ixbrl-viewer-app-language";
+export const STORAGE_THEME = "ixbrl-viewer-theme";
+export const STORAGE_HIGHLIGHT_FACTS = "ixbrl-viewer-highlight-all-facts";
+export const STORAGE_HOME_LINK_QUERY = "ixbrl-viewer-home-link-query";
+export const USER_GUIDE_URL = "https://arelle-ixbrl-viewer.readthedocs.io/en/latest/user_guides/user_guide.html";
 
 /* 
  * Takes a moment.js oject and converts it to a human readable date, or date
@@ -259,7 +279,7 @@ export function localId(viewerUniqueId) {
 
 export function getIXHiddenLinkStyle(domNode) {
     if (domNode.hasAttribute('style')) {
-        const re = /(?:^|\s|;)-(?:sec|esef)-ix-hidden:\s*([^\s;]+)/;
+        const re = /(?:^|\s|;)(?:-sec|-esef)?-ix-hidden:\s*([^\s;]+)/;
         const m = domNode.getAttribute('style').match(re);
         if (m) {
             return m[1];
@@ -269,18 +289,21 @@ export function getIXHiddenLinkStyle(domNode) {
 }
 
 /**
- * Transforms measure qname into title case label (or currency symbol, if applicable).
- * @return {String} Measure Label
+ * Moves all attributes from one element to another, excluding data attributes created by the viewer application.
  */
-
-export function measureLabel(report, measure) {
-    const qname = report.qname(measure);
-    if (qname.namespace === NAMESPACE_ISO4217) {
-        measure = i18next.t(`currencies:unitFormat${qname.localname}`, {defaultValue: qname.localname});
-    } else if (measure.includes(':')) {
-        measure = measure.split(':')[1];
+export function moveNonAppAttributes(fromElement, toElement) {
+    for (const attr of [...fromElement.attributes]) {
+        if (!attr.name.startsWith("data-")) {
+            toElement.setAttribute(attr.name, attr.value); 
+            fromElement.removeAttribute(attr.name);
+        }
     }
-    return measure;
+    for (const [key, value] of Object.entries(fromElement.dataset)) {
+        if (!key.startsWith(IXBRL_VIEWER_DATASET_PREFIX)) {
+            toElement.dataset[key] = value;
+            delete fromElement.dataset[key];
+        }
+    }
 }
 
 export function zoom(container, scrollParent, scale) {

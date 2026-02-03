@@ -1,6 +1,5 @@
 // See COPYRIGHT.md for copyright information
 
-import $ from 'jquery'
 import { XBRLReport } from './report.js';
 import { Fact } from "./fact.js"
 import { Footnote } from "./footnote.js"
@@ -8,7 +7,7 @@ import { Unit } from "./unit";
 import { titleCase, viewerUniqueId, localId } from "./util.js";
 import { QName } from "./qname.js";
 import { ViewerOptions } from './viewerOptions.js';
-
+import { TaxonomyNamer } from './taxonomynamer.js';
 
 // Class represents the set of XBRL "target" reports shown in the viewer.
 // Each contained report represents the data from a single target document in a
@@ -19,7 +18,7 @@ export class ReportSet {
         this._data = data;
         this._ixNodeMap = {};
         this.viewerOptions = new ViewerOptions()
-        this._reportFiles = this._calculateReportFiles();
+        this.taxonomyNamer = new TaxonomyNamer(new Map());
     }
 
     /*
@@ -88,16 +87,6 @@ export class ReportSet {
         return this._ixNodeMap[vuid] || {};
     }
 
-    getItemsByLocalId(id) {
-        let ret = [];
-        for (const [_, item] of Object.entries(this._items)) {
-            if (localId(item.vuid) === id) {
-                ret.push(item);
-            }
-        }
-        return ret;
-    }
-
     facts() {
         return Object.values(this._items).filter(i => i instanceof Fact);
     }
@@ -108,6 +97,10 @@ export class ReportSet {
 
     prefixMap() {
         return this._data.prefixes;
+    }
+
+    preferredPrefix(prefix) {
+        return this.taxonomyNamer.getName(prefix, this._data.prefixes[prefix]).prefix;
     }
 
     namespaceGroups() {
@@ -127,6 +120,20 @@ export class ReportSet {
                     .map(f => f.getConceptPrefix()));
         }
         return this._usedPrefixes;
+    }
+
+    getUsedConceptDataTypes() {
+        if (this._usedDataTypes === undefined) {
+            const map = new Map()
+            for (const dt of Object.values(this._items)
+                    .filter(f => f instanceof Fact)
+                    .map(f => ({ dataType: f.concept().dataType(), isNumeric: f.isNumeric() }))
+                    .filter(t => t.dataType !== undefined)) {
+                map.set(dt.dataType.name, dt);
+            }
+            this._usedDataTypes = map.values().toArray();
+        }
+        return this._usedDataTypes;
     }
 
     /**
@@ -213,23 +220,15 @@ export class ReportSet {
      * Returns a flat list of source files for all reports in the report set.
      * Each entry in the list is an object with:
      *   file - name of the file
-     *   name - display name of the file (same as file for string entries, or from object's name property)
      *   index - index of the report that it is for
-     * Supports docSetFiles entries as either strings or objects with { name, file } structure.
      * May return an empty list for single file, non-stub viewers.
      * @return {List}   A list of objects describing each file
      */
     reportFiles() {
-        return this._reportFiles;
-    }
-
-    _calculateReportFiles() {
+        // AMANA extension: include name property for document display
         const sourceReports = this._data.sourceReports ?? [ this._data ];
         return sourceReports.map((x, n) => {
             const docSetFiles = x.docSetFiles ?? [];
-            if (docSetFiles.length === 0) {
-                return [];
-            }
             const targetReports = x.targetReports ?? [];
             return docSetFiles.map((file, i) => ({
                 index: n,
@@ -255,29 +254,8 @@ export class ReportSet {
         return this.reportsData().some(r => r.rels?.["w-n"] !== undefined);
     }
 
-    getAnchors(concept) {
-        const res = [];
-        const report = this.reports[0];
-        if (this.usesAnchoring()) {
-            for (const reportData of this.reportsData()) {
-                const wnRels = reportData.rels?.["w-n"];
-                if (!wnRels) continue;
-                $.each(wnRels, function (elr, rr) {
-                    $.each(rr, function(c, r) {
-                        if (concept.name == c) {
-                            $.each(r, function(i, v) {
-                                res.push({concept: report.getConcept(v.t), wide: 0});
-                            });
-                        } else
-                            $.each(r, function(i, v) {
-                                if (v.t == concept.name)
-                                    res.push({concept: report.getConcept(c), wide: 1});
-                            });
-                    });
-                });
-            }
-        }
-        return res;
+    usesCalculations() {
+        return this.reportsData().some(r => Object.keys(r.rels?.calc ?? {}).length > 0);
     }
 
     hasValidationErrors() {
@@ -291,5 +269,5 @@ export class ReportSet {
     factsForReport(report) {
         return Object.values(this._items).filter(i => i instanceof Fact && i.report == report);
     }
-    
+
 }

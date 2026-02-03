@@ -1,12 +1,12 @@
 [build-system]
-requires = ["setuptools~=69.0", "wheel~=0.42", "setuptools_scm[toml]~=8.0"]
+requires = ["setuptools>=79,<81", "wheel~=0.45", "setuptools_scm[toml]>=8.3,<10.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "ixbrl-viewer"
 dynamic = ['version']
 readme = "README.md"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 description = "The Arelle iXBRL Viewer allows iXBRL reports to be viewed interactively in a web browser."
 authors = [
     {name = "arelle.org", email = "support@arelle.org"}
@@ -16,31 +16,31 @@ classifiers = [
     'Development Status :: 5 - Production/Stable',
     'Intended Audience :: End Users/Desktop',
     'Intended Audience :: Developers',
-    'License :: OSI Approved :: Apache Software License',
     'Natural Language :: English',
     'Programming Language :: Python :: 3',
-    
-    'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
+    'Programming Language :: Python :: 3.13',
+    'Programming Language :: Python :: 3.14',
     'Operating System :: OS Independent',
     'Topic :: Text Processing :: Markup :: XML'
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
-    'lxml>=4,<6'
+    'bottle>=0.13,<0.14',
+    'lxml>=4,<7'
 ]
 [project.optional-dependencies]
 arelle = [
     'arelle_release==2.*',
 ]
 dev = [
-    'flake8==7.1.1',
-    'lxml-stubs==0.5.1',
-    'mypy==1.13.0',
-    'pytest==8.3.3',
-    'typing-extensions==4.12.2',
+    'flake8==7.3.0',
+    'mypy==1.19.1',
+    'pytest==9.0.2',
+    'types-lxml==2026.1.1',
+    'typing-extensions==4.15.0',
 ]
 
 # https://setuptools.pypa.io/en/latest/userguide/entry_point.html#entry-points-for-plugins
@@ -60,7 +60,7 @@ ixbrl-viewer = "iXBRLViewerPlugin:load_plugin_url"
 platforms = ["any"]
 
 [tool.setuptools.packages.find]
-namespaces = false
+include = ["iXBRLViewerPlugin*"]
 
 [tool.setuptools_scm]
 tag_regex = "^(?:[\\w-]+-?)?(?P<version>[vV]?\\d+(?:\\.\\d+){0,2}[^\\+]*)(?:\\+.*)?$"
@@ -69,27 +69,13 @@ write_to = "iXBRLViewerPlugin/_version.py"
 [tool.mypy]
 # Warn when a # type: ignore comment does not specify any error codes
 enable_error_code = "ignore-without-code"
-python_version = "3.12"
+python_version = "3.14"
 show_error_codes = true
 strict = true
 
-# --- ignore modules ---
-# remove from list below as each module is updated with type hinting
+# --- arelle types ---
+# We don't publish arelle types (yet), as they're incomplete and we don't want other devs to rely on them.
+# But we should be using them ourselves to gradually improve typing in Arelle and its plugins.
 [[tool.mypy.overrides]]
-module = [
-    'iXBRLViewerPlugin',
-    'iXBRLViewerPlugin.iXBRLViewer',
-    'iXBRLViewerPlugin.ui',
-    'iXBRLViewerPlugin.xhtmlserialize',
-]
-ignore_errors = true
-
-# --- Modules lacking stubs ---
-# Add any module missing library stubs or not having
-# the py.typed marker here
-[[tool.mypy.overrides]]
-module = [
-    'ttk',
-    'arelle.*',
-]
-ignore_missing_imports = true
+module = 'arelle.*'
+follow_untyped_imports = true

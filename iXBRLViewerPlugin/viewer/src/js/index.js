@@ -3,8 +3,17 @@
 import $ from 'jquery'
 import { iXBRLViewer } from "./ixbrlviewer.js";
 
-$(function () {    
-    var iv = new iXBRLViewer();
+const scriptSrc = document.currentScript.src;
+
+$(() => {
+    const options = {
+        showValidationWarningOnStart: false,
+    };
+    const configUrl = new URL("ixbrlviewer.config.json", scriptSrc);
+    if (configUrl.protocol != 'file:') {
+        options["configUrl"] = configUrl;
+    }
+
+    const iv = new iXBRLViewer(options);
     iv.load();
 });
-

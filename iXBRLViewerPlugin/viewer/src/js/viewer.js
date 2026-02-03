@@ -35,7 +35,7 @@ export class Viewer {
             this._contents = iframes.contents();
         } else {
             this._contents = iframes;
-        } 
+        }
         this.onSelect = $.Callbacks();
         this.onMouseEnter = $.Callbacks();
         this.onMouseLeave = $.Callbacks();
@@ -80,11 +80,13 @@ export class Viewer {
                 .then(() => viewer._iv.setProgress("Pre-processing document"))
                 .then(() => {
 
-                    viewer._iframes.each(function (docIndex) { 
+                    viewer._iframes.each(function (docIndex) {
                         $(this).data("selected", docIndex == viewer._currentDocumentIndex);
                         const reportIndex = $(this).data("report-index");
-                        viewer._preProcessiXBRL($(this).contents().find("body").get(0), reportIndex, docIndex);
+                        viewer._preProcessiXBRL($(this).contents().find("body").get(0), reportIndex, docIndex, false);
                     });
+
+                    viewer._setContinuationMaps();
 
                     /* Call plugin promise for each document in turn */
                     (async function () {
@@ -118,20 +120,20 @@ export class Viewer {
                             resolve();
                         })
                         .then(() => {
-                            viewer._iframes.each(function (docIndex) { 
+                            viewer._iframes.each(function (docIndex) {
                                 viewer._postProcessXBRL($(this).contents().find("body").get(0), docIndex);
-                            });    
+                            });
                         })
-                        .then(() => {                
+                        .then(() => {
                             viewer.contextMenu = new ContextMenu({
                                 target: $('body', viewer.contents()),
                                 menuItems: (target) => viewer._createContextMenuItems(target),
-                                mode: "light" 
+                                mode: "light"
                             });
-                            viewer.contextMenu.init();                  
+                            viewer.contextMenu.init();
                         })
-                })
-                .catch(err => reject(err));
+            })
+            .catch(err => reject(err));
         });
     }
 
@@ -139,7 +141,7 @@ export class Viewer {
         if (this._reportSet.isMultiDocumentViewer()) {
             $('#ixv .ixds-tabs').show();
             for (const [i, doc] of this._reportSet.reportFiles().entries()) {
-                $('<div class="tab"></div>')
+                $('<button class="tab"></button>')
                     .text(doc.name)
                     .prop('title', doc.name)
                     .data('ix-doc-id', i)
@@ -154,12 +156,17 @@ export class Viewer {
     // display: block, a div is used, otherwise a span.  Returns the wrapper node
     // as a jQuery node
     _wrapNode(n) {
-        var wrapper = "<span>";
-        const nn = n.getElementsByTagName("*");
-        for (var i = 0; i < nn.length; i++) {
-            if (getComputedStyle(nn[i]).getPropertyValue('display') === "block") {
-                wrapper = '<div>';
-                break;
+        let wrapper = "<span>";
+        if (getComputedStyle(n).getPropertyValue("display") === "block") {
+            wrapper = '<div>';
+        }
+        else {
+            const nn = n.getElementsByTagName("*");
+            for (var i = 0; i < nn.length; i++) {
+                if (getComputedStyle(nn[i]).getPropertyValue('display') === "block") {
+                    wrapper = '<div>';
+                    break;
+                }
             }
         }
         $(n).wrap(wrapper);
@@ -233,7 +240,7 @@ export class Viewer {
      * attribute)
      */
     _showDocumentAndElement(docIndex, fragment) {
-        this.selectDocument(docIndex); 
+        this.selectDocument(docIndex);
         if (fragment !== undefined && fragment != "") {
             // As per HTML spec, try fragment, then try %-decoded fragment
             // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-indicated-part-of-the-document
@@ -263,9 +270,9 @@ export class Viewer {
             const [file, fragment] = url.split('#', 2);
             const docIndex = this._reportSet.reportFiles().indexOf(file);
             if (!url.includes('/') && docIndex != -1) {
-                $(n).on("click", (e) => { 
+                $(n).on("click", (e) => {
                     this._showDocumentAndElement(docIndex, fragment);
-                    e.preventDefault(); 
+                    e.preventDefault();
                 });
             }
             else if (file) {
@@ -285,42 +292,43 @@ export class Viewer {
         }
 
         /* Is the element the only significant content within a <td> or <th> ? If
-         * so, use that as the wrapper element. */
+         * so, use that as the wrapper element.
+         * Check for 'display: table-cell' to avoid using hidden cells */
         const tableNode = domNode.closest("td,th");
         const nodes = [];
         const innerText = $(domNode).text();
-        if (tableNode !== null && innerText.length > 0) {
+        if (tableNode !== null && getComputedStyle(tableNode).display === 'table-cell' && innerText.length > 0) {
             // Use indexOf rather than a single regex because innerText may
-            // be too long for the regex engine 
+            // be too long for the regex engine
             const outerText = $(tableNode).text();
             const start = outerText.indexOf(innerText);
             const wrapper = outerText.substring(0, start) + outerText.substring(start + innerText.length);
             if (!/[0-9A-Za-z]/.test(wrapper)) {
                 nodes.push(tableNode)
-            } 
+            }
         }
-        
+
         /* AMANA extension: */
         if (nodes.length == 0) {
             var parent = $(domNode).parent('div.-ixh-highlight-region');
-            if (parent.length > 0) {                    
+            if (parent.length > 0) {
                 nodes.push(parent[0]);
             }
-        }    
+        }
 
-        /* Otherwise, insert a <span> as wrapper */     
-        let checkDescendants = !this._iv.isPDF;   
+        /* Otherwise, insert a <span> or <div> as wrapper */
+        let checkDescendants = !this._iv.isPDF;
         if (nodes.length == 0) {
             nodes.push(this._wrapNode(domNode));
-            checkDescendants = true;    
-        }    
+            checkDescendants = true;
+        }
 
         if (checkDescendants) {
             // Create a list of the wrapper node, and all absolutely positioned descendants.
-            for (const e of nodes[0].querySelectorAll("*")) { 
-                if (getComputedStyle(e).getPropertyValue('position') === "absolute") { 
+            for (const e of nodes[0].querySelectorAll("*")) {
+                if (getComputedStyle(e).getPropertyValue('position') === "absolute") {
                     nodes.push(e);
-                } 
+                }
             }
         }
 
@@ -386,9 +394,15 @@ export class Viewer {
         this.itemContinuationMap = itemContinuationMap;
     }
 
+    _setContinuationMaps() {
+        for (const [itemId, itemContinuations] of Object.entries(this.itemContinuationMap)) {
+            this._ixNodeMap[itemId].continuations = itemContinuations.map(id => this._ixNodeMap[id]);
+        }
+    }
+
     _getOrCreateIXNode(vuid, nodes, docIndex, isHidden) {
         // We may have already created an IXNode for this ID from a -sec-ix-hidden
-        // element 
+        // element
         let ixn = this._ixNodeMap[vuid];
         if (!ixn) {
             ixn = new IXNode(vuid, nodes, docIndex);
@@ -409,12 +423,12 @@ export class Viewer {
     //   .ixbrl-element-hidden an ix: element inside ix:hidden
     //
     // Additional classes:
-    //   .ixbrl-no-highlight   a zero-height .ixbrl-element - no highlighting or 
+    //   .ixbrl-no-highlight   a zero-height .ixbrl-element - no highlighting or
     //                         borders applied
     //   .ixbrl-element-nonfraction,
     //   .ixbrl-element-nonnumeric,
-    //   .ixbrl-continuation, 
-    //   .ixbrl-element-footnote       
+    //   .ixbrl-continuation,
+    //   .ixbrl-element-footnote
     //                         Indicates type of element being wrapped
     //
     // All ixbrl-elements have "ivids" data added, which is a list of the ID
@@ -486,7 +500,7 @@ export class Viewer {
                 // Handle SEC/ESEF links-to-hidden
                 const vuid = viewerUniqueId(reportIndex, getIXHiddenLinkStyle(n));
                 if (vuid !== null) {
-                    let nodes = $(n);
+                    let nodes = this._findOrCreateWrapperNode(n, inHidden);
                     nodes.addClass("ixbrl-element").data('ivids', [vuid]);
                     this._docOrderItemIndex.addItem(vuid, docIndex);
                     /* We may have already seen the corresponding ix element in the hidden
@@ -515,18 +529,12 @@ export class Viewer {
         }
     }
 
-    _preProcessChildNodes(domNode, docIndex, inHidden) {
-        for (const childNode of domNode.childNodes) {
-            this._preProcessiXBRL(childNode, docIndex, inHidden);
-        }
-    }
-
     _postProcessXBRL(container) {
         const viewer = this;
-        $(container).find('.ixbrl-element').each(function (_, node) { 
+        $(container).find('.ixbrl-element').each(function (_, node) {
             var id = $(node).data('ivids')[0];
             var fact = viewer._reportSet.getItemById(id);
-            if (fact && fact.constructor.name !== 'Footnote') { 
+            if (fact && fact.constructor.name !== 'Footnote') {
                 if ($(node).hasClass('ixbrl-contains-absolute')) {
                     $(node).find('.ixbrl-sub-element').each(function (_, subNode) {
                         viewer._postProcessXBRLNode(container, subNode, fact);
@@ -543,7 +551,7 @@ export class Viewer {
         const self = this;
         if (fact && fact.hasValidationResults())
             $(node).addClass("inline-fact-with-message");
-        var htmlTooltip;    
+        var htmlTooltip;
         if (fact) {
             var title = fact.getLabel("std") || fact.conceptName();
             if (fact.concept().isTaxonomyExtension()) {
@@ -554,16 +562,16 @@ export class Viewer {
                 htmlTooltip = false;
             }
         } else {
-            console.log(`Fact with id '${id}' is not found in the report data`);
+            console.log(`Fact with id '${fact?.vuid}' is not found in the report data`);
         }
-        $(node).tooltip({     
+        $(node).tooltip({
             html: htmlTooltip,
             container: container,
             delay: { "show": 350 },
             title: function() {
                 return $(this).attr('ix-title') || $(this).parents('.ixbrl-element').attr('ix-title');
             }
-        }).on('show.bs.tooltip', function(evt) {        
+        }).on('show.bs.tooltip', function(evt) {
             if (self._tooltipShown !== null && self._tooltipShown !== evt.target) {
                 if ($(self._tooltipShown).parents().length > $(evt.target).parents().length) {
                     evt.preventDefault();
@@ -574,10 +582,10 @@ export class Viewer {
             } else {
                 self._tooltipShown = evt.target;
             }
-        }).on('hide.bs.tooltip', function(evt) {        
+        }).on('hide.bs.tooltip', function(evt) {
             if (self._tooltipShown === evt.target)
                 self._tooltipShown = null;
-        }); 
+        });
     }
 
     _applyStyles() {
@@ -591,7 +599,7 @@ export class Viewer {
     contents() {
         return this._contents;
     }
-    
+
     // Move by offset (+1 or -1) through the tags in the document in document
     // order.
     //
@@ -608,15 +616,15 @@ export class Viewer {
         // If no fact selected go to the first or last in the current document
         else if (offset > 0) {
             nextVuid = this._docOrderItemIndex.getFirstInDocument(this._currentDocumentIndex);
-        } 
+        }
         else {
             nextVuid = this._docOrderItemIndex.getLastInDocument(this._currentDocumentIndex);
         }
-        
+
         const nextElement = this.elementsForItemId(nextVuid);
         this.showElement(nextElement);
         // If this is a table cell with multiple nested tags pass all tags so that
-        // all are shown in the inspector. 
+        // all are shown in the inspector.
         this.selectElement(nextVuid, this._ixIdsForElement(nextElement));
     }
 
@@ -635,7 +643,7 @@ export class Viewer {
                 if (viewer._useFrames || target.closest("#iframe-div").length != 0)
                     viewer.selectElement(null);
             });
-        
+
         $('#iframe-container .zoom-in').on("click", () => this.zoomIn());
         $('#iframe-container .zoom-out').on("click", () => this.zoomOut());
         $('#iframe-container .print').on("click", () => this.currentDocument().get(0).contentWindow.print());
@@ -697,7 +705,7 @@ export class Viewer {
                 return false;
             }
             ancestor = ancestor.parent();
-        } 
+        }
         // In quirks mode, clientHeight of body is viewport height.  In standards
         // mode, clientHeight of html is viewport height.
         const quirksMode = node.ownerDocument.compatMode != 'CSS1Compat';
@@ -715,24 +723,24 @@ export class Viewer {
     }
 
     clearHighlighting() {
-        $("body", this._iframes.contents()).find(".ixbrl-element, .ixbrl-sub-element").removeClass("ixbrl-selected").removeClass("ixbrl-related").removeClass("ixbrl-linked-highlight");
+        $("body", this._iframes.contents()).find(".ixbrl-element").removeClass("ixbrl-selected").removeClass("ixbrl-related").removeClass("ixbrl-linked-highlight");
     }
 
     _ixIdsForElement(e) {
         return e.data('ivids');
     }
 
-    /*       
-     * AMANA extension: creating context menu for navigation between continuations     
+    /*
+     * AMANA extension: creating context menu for navigation between continuations
      */
     _createContextMenuItems(e) {
         const self = this;
         const menuItems = [];
-        
+
         e = $(e);
         if (!e.hasClass(".ixbrl-element")) {
             e = e.closest(".ixbrl-element");
-        }    
+        }
 
         if (e.length == 0 || self._iv.inspector._currentItem === null) {
             return menuItems;
@@ -746,9 +754,9 @@ export class Viewer {
         range.selectNodeContents(e[0]);
 
         const id = self._iv.inspector._currentItem.vuid;
-        
+
         let before = [];
-        let after = [];        
+        let after = [];
 
         $(".ixbrl-element", this._contents).filter(function () {
             let ids2 = self._ixIdsForElement($(this));
@@ -765,21 +773,21 @@ export class Viewer {
             let firstElm = $(before[0]);
             let firstSubelement = firstElm.find("ixbrl-sub-element").first();
             if (firstSubelement.length > 0) {
-                prevElm = firstSubelement;
+                firstElm = firstSubelement;
             }
             if (!this.isFullyVisible(firstElm[0])) {
-                menuItems.push({ 
+                menuItems.push({
                     content: "Show head",
-                    divider: "bottom", 
+                    divider: "bottom",
                     events: {
                         click: () => {
                             firstElm[0].scrollIntoView({ block: "center"});
-                        } 
-                    } 
+                        }
+                    }
                 });
-            }            
+            }
         }
-        
+
         for (let j = before.length -1; j >= 0; j--) {
             let prevElm = $(before[j]);
             let firstSubelement = prevElm.find("ixbrl-sub-element").first();
@@ -793,7 +801,7 @@ export class Viewer {
                         click: () => {
                             prevElm[0].scrollIntoView({ block: "center"});
                         }
-                    } 
+                    }
                 });
                 break;
             }
@@ -805,17 +813,17 @@ export class Viewer {
                 nextElm = lastSubelement;
             }
             if (!this.isFullyVisible(nextElm[0])) {
-                menuItems.push({ 
+                menuItems.push({
                     content: "Show next",
                     events: {
                         click: () => {
                             nextElm[0].scrollIntoView({ block: "center"});
-                        } 
-                    } 
+                        }
+                    }
                 });
                 break;
             }
-        }        
+        }
         if (after.length > 1) {
             let lastElm = $(after[after.length - 1]);
             let lastSubelement = lastElm.find("ixbrl-sub-element").last();
@@ -823,14 +831,14 @@ export class Viewer {
                 lastElm = lastSubelement;
             }
             if (!this.isFullyVisible(lastElm[0])) {
-                menuItems.push({ 
+                menuItems.push({
                     content: "Show tail",
-                    divider: "top", 
+                    divider: "top",
                     events: {
                         click: () => {
                             lastElm[0].scrollIntoView({ block: "center"});
-                        } 
-                    } 
+                        }
+                    }
                 });
             }
         }
@@ -884,14 +892,14 @@ export class Viewer {
         // Now find all iXBRL IDs on all ancestors in document order, making a note
         // of the first one (sameContentAncestorId) that has exactly the same
         // content as "e"
-        e.parents(".ixbrl-element").addBack().each(function () { 
+        e.parents(".ixbrl-element").addBack().each(function () {
             const vuids = viewer._ixIdsForElement($(this));
             itemIDList = itemIDList.concat(vuids);
             if ($(this).text() == e.text() /*&& sameContentAncestorVuid === undefined*/) {
                 sameContentAncestorVuid = vuids[0];
             }
         });
-        this.selectElement(sameContentAncestorVuid, itemIDList, true);        
+        this.selectElement(sameContentAncestorVuid, itemIDList, true);
     }
 
     _mouseEnter(e) {
@@ -918,7 +926,7 @@ export class Viewer {
         $(".ixbrl-related", this._contents).removeClass("ixbrl-related");
     }
 
-    // Return a jQuery node list for wrapper elements corresponding to 
+    // Return a jQuery node list for wrapper elements corresponding to
     // the factId.  May contain more than one node if the IX node contains
     // absolutely positioned elements.
     elementsForItemId(vuid) {
@@ -930,13 +938,19 @@ export class Viewer {
 
     elementsForItemIds(vuids) {
         return $(vuids.map(vuid => this.elementsForItemId(vuid).get()).flat());
-    }    
+    }
+
+    // Returns a jQuery node list containing the primary wrapper node for each
+    // vuid provided
+    primaryElementsForItemIds(vuids) {
+        return $(vuids.map(vuid => this.elementsForItemId(vuid).first().get(0)));
+    }
 
     /*
      * Add or remove a class to an item (fact or footnote) and any continuation elements
      */
     changeItemClass(vuid, highlightClass, removeClass) {
-        const elements = this.elementsForItemIds([vuid].concat(this.itemContinuationMap[vuid]))
+        const elements = this.primaryElementsForItemIds([vuid].concat(this.itemContinuationMap[vuid]))
         if (removeClass) {
             elements.removeClass(highlightClass);
         }
@@ -951,7 +965,7 @@ export class Viewer {
     highlightItem(vuid, itemIdList) {
         this.clearHighlighting();
         this.changeItemClass(vuid, "ixbrl-selected");
-        if (this._highlighting) {
+        if (this._highlighting && itemIdList) {
             this.focusOnSelected(vuid, itemIdList.map(f => f.id));
         }
     }
@@ -985,21 +999,22 @@ export class Viewer {
                     // highlight color for an element that is double tagged in a
                     // table cell.
                     const ixn = $(this).data('ivids').map(id => viewer._ixNodeMap[id]).filter(ixn => !ixn.footnote)[0];
-                    const fact = reportSet.getItemById(ixn.id);
-                    if (ixn != undefined && fact != undefined) {
-                        const elements = viewer.elementsForItemIds(ixn.chainIXIds());
-                        const i = groups[fact.conceptQName().prefix];
-                        if (i !== undefined) {
-                            elements.addClass("ixbrl-highlight-" + i);
+                    if (ixn !== undefined ) {
+                        const item = reportSet.getItemById(ixn.id);
+                        if (item !== undefined) {
+                            const elements = viewer.primaryElementsForItemIds(ixn.chainIXIds());
+                            const i = groups[item.conceptQName().prefix];
+                            if (i !== undefined) {
+                                elements.addClass("ixbrl-highlight-" + i);
+                            }
                         }
                     } else {
                         $(this).addClass("ixbrl-highlight-missing");
                     }
             });
-            $(".ixbrl-sub-element", this._contents).addClass("ixbrl-highlight");
         }
         else {
-            $(".ixbrl-element, .ixbrl-sub-element", this._contents).removeClass(
+            $(".ixbrl-element", this._contents).removeClass(
                 (i, className) => (className.match (/(^|\s)ixbrl-highlight\S*/g) || []).join(' ')
             );
         }
@@ -1022,23 +1037,23 @@ export class Viewer {
     }
 
     _zoom () {
-        var self = this;    
+        var self = this;
         $('html', this._contents).each(function () {
             var container, scrollParent;
             if (!self._mzInit) {
                 if (self._iv.isPDF) {
                     let pagecontainer = $('#page-container', $(this));
-                    pagecontainer.contents().wrapAll('<div id="zoom-container"></div>');                
-                } else {                            
+                    pagecontainer.contents().wrapAll('<div id="zoom-container"></div>');
+                } else {
                     container = $(this.ownerDocument.body);
                     container.contents().wrapAll('<div id="zoom-container"></div>');
-                } 
+                }
                 self._mzInit = true;
             }
             container = $('#zoom-container', $(this));
             scrollParent = $(getScrollParent(container[0]));
             zoom(container, scrollParent, self.scale);
-        });  
+        });
     }
 
     zoomIn () {
@@ -1069,7 +1084,10 @@ export class Viewer {
     }
 
     _setTitle(docIndex) {
-        $('#top-bar .document-title').text($('head title', this._iframes.eq(docIndex).contents()).text());
+        const title = $('head title', this._iframes.eq(docIndex).contents()).text();
+        $('#top-bar .document-title')
+            .text(title)
+            .attr("aria-label", "Inline Viewer: " + title);
     }
 
     showDocumentForItemId(vuid) {
@@ -1140,10 +1158,11 @@ export class Viewer {
             }
         });
     }
+
     * postProcess() {
         for (const iframe of this._iframes.get()) {
             const doc = this._useFrames ? $(iframe).contents() : $(iframe);
-            const elts = doc.get(0).querySelectorAll(".ixbrl-contains-absolute");            
+            const elts = doc.get(0).querySelectorAll(".ixbrl-contains-absolute");
             // In some cases, getBoundingClientRect().height returns 0, and
             // immediately repeating the call returns > 0, so do this in two passes.
             for (const [i, e] of elts.entries()) {

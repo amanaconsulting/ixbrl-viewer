@@ -94,13 +94,17 @@ export class DocumentSummary {
                 counter.addDimension(dimension);
 
                 const dimensionConcept = fact.report.getConcept(dimension);
-                if (dimensionConcept.isTypedDimension()) {
+                if (!dimensionConcept.hasDefinition) {
+                    console.log("Missing definition for dimension: " + dimension);
+                }
+                else if (dimensionConcept.isTypedDimension()) {
                     const typedDomainElement = dimensionConcept.typedDomainElement();
                     if (typedDomainElement) {
                         counter = this._getTagCounter(tagCounts, typedDomainElement);
                         counter.addMember(typedDomainElement);
                     }
-                } else {
+                } 
+                else {
                     counter = this._getTagCounter(tagCounts, member);
                     counter.addMember(member);
                 }
@@ -123,6 +127,20 @@ export class DocumentSummary {
             this._totalFacts = this._reportSet.facts().length;
         }
         return this._totalFacts;
+    }
+
+    hiddenFacts() {
+        if (this._hiddenFacts === undefined) {
+            this._hiddenFacts = this._reportSet.facts().filter(f => f.isHidden()).length;
+        }
+        return this._hiddenFacts;
+    }
+
+    mandatoryFacts() {
+        if (this._mandatoryFacts === undefined) {
+            this._mandatoryFacts = this._reportSet.facts().filter(f => f.isMandatory()).length;
+        }
+        return this._mandatoryFacts;
     }
 
     tagCounts() {
