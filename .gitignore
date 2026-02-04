@@ -15,3 +15,5 @@ iXBRLViewerPlugin/viewer/src/less/generated/
 iXBRLViewerPlugin/_version.py
 /ixbrl-viewer*.tgz
 ixbrl_viewer.egg-info
+.vs/
+.claude/
