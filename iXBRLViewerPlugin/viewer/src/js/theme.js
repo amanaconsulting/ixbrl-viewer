@@ -47,4 +47,9 @@ export function toggleTheme() {
     const newTheme = currentTheme === LIGHT_THEME ? DARK_THEME : LIGHT_THEME;
     setTheme(newTheme);
     storeTheme(newTheme);
+    // AMANA extension: notify parent window about theme change
+    window.parent.postMessage({
+        type: "ixbrl-viewer-theme-changed",
+        theme: newTheme
+    }, '*');
 }

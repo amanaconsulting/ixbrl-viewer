@@ -265,6 +265,11 @@ export function localId(viewerUniqueId) {
     return viewerUniqueId.replace(/^\d+-/,"");
 }
 
+export function docSetIdFromVuid(viewerUniqueId) {
+    const match = viewerUniqueId.match(/^(\d+)-/);
+    return match ? parseInt(match[1], 10) : null;
+}
+
 /**
  * Parses fact IDs from -sec-ix-hidden and -esef-ix-hidden style 
  * attributes on a DOM node.  

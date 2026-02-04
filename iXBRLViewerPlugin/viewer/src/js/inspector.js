@@ -3,7 +3,7 @@
 import $ from 'jquery'
 import i18next from 'i18next';
 import jqueryI18next from 'jquery-i18next';
-import {formatNumber, wrapLabel, truncateLabel, runGenerator, SHOW_FACT, HIGHLIGHT_COLORS, viewerUniqueId, localId, escapeHtml, GLOSSARY_URL, FEATURE_HOME_LINK_URL, FEATURE_HOME_LINK_LABEL, FEATURE_SEARCH_ON_STARTUP, FEATURE_HIGHLIGHT_FACTS_ON_STARTUP, STORAGE_APP_LANGUAGE, STORAGE_HIGHLIGHT_FACTS, STORAGE_HOME_LINK_QUERY, FEATURE_HIDE_CALCULATION_MODE_OPTION} from "./util.js";
+import {formatNumber, wrapLabel, truncateLabel, runGenerator, SHOW_FACT, HIGHLIGHT_COLORS, viewerUniqueId, localId, docSetIdFromVuid, escapeHtml, GLOSSARY_URL, FEATURE_HOME_LINK_URL, FEATURE_HOME_LINK_LABEL, FEATURE_SEARCH_ON_STARTUP, FEATURE_HIGHLIGHT_FACTS_ON_STARTUP, STORAGE_APP_LANGUAGE, STORAGE_HIGHLIGHT_FACTS, STORAGE_HOME_LINK_QUERY, FEATURE_HIDE_CALCULATION_MODE_OPTION} from "./util.js";
 import { ReportSearch } from "./search.js";
 import { IXBRLChart } from './chart.js';
 import { ViewerOptions } from './viewerOptions.js';
@@ -1624,6 +1624,12 @@ export class Inspector {
         if (typeof boundEvent !== "undefined") {
             boundEvent.updateSelection(vuid ? localId(vuid) : null);
         }
+        // AMANA extension: notify parent window about fact selection
+        window.parent.postMessage({
+            type: "ixbrl-viewer-fact-selected",
+            docSetId: vuid ? docSetIdFromVuid(vuid) : null,
+            factId: vuid ? localId(vuid) : null
+        }, '*');
     }
 
     preferredLanguages() {
