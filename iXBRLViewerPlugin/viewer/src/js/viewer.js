@@ -44,7 +44,6 @@ export class Viewer {
         this._docOrderItemIndex = new DocOrderIndex();
         this._currentDocumentIndex = 0;
 
-        this._mzInit = false;
         this._tooltipShown = null;
         this._highlighting = false;
         this.showTablesBorder = false;
@@ -115,8 +114,8 @@ export class Viewer {
                             this._applyStyles();
                             this._bindHandlers();
                             this.scale = 1;
-                            this._setTitle(0);
                             this._addDocumentSetTabs();
+                            this.selectDocument(0);
                             resolve();
                         })
                         .then(() => {
@@ -1039,19 +1038,19 @@ export class Viewer {
     _zoom () {
         var self = this;
         $('html', this._contents).each(function () {
-            var container, scrollParent;
-            if (!self._mzInit) {
+            var container = $('#zoom-container', $(this));
+            // If zoom-container doesn't exist for this document, create it
+            if (container.length === 0) {
                 if (self._iv.isPDF) {
                     let pagecontainer = $('#page-container', $(this));
                     pagecontainer.contents().wrapAll('<div id="zoom-container"></div>');
                 } else {
-                    container = $(this.ownerDocument.body);
-                    container.contents().wrapAll('<div id="zoom-container"></div>');
+                    const body = $(this.ownerDocument.body);
+                    body.contents().wrapAll('<div id="zoom-container"></div>');
                 }
-                self._mzInit = true;
+                container = $('#zoom-container', $(this));
             }
-            container = $('#zoom-container', $(this));
-            scrollParent = $(getScrollParent(container[0]));
+            const scrollParent = $(getScrollParent(container[0]));
             zoom(container, scrollParent, self.scale);
         });
     }
