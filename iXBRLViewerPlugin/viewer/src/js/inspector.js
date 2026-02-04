@@ -431,6 +431,11 @@ export class Inspector {
         localStorage.setItem(STORAGE_APP_LANGUAGE, lang);
         i18next.changeLanguage(lang);
         this.rebuildViewer();
+        // AMANA extension: notify parent window about application language change
+        window.parent.postMessage({
+            type: "ixbrl-viewer-application-language-changed",
+            language: lang
+        }, '*');
     }
 
     rebuildViewer() {
@@ -440,7 +445,6 @@ export class Inspector {
         this.buildHomeLink()
         this.buildToolbarHighlightMenu();
         this.buildHighlightKey();
-        this.buildUserGuideLink();
         this.update();
         this.search();
     }
@@ -1662,6 +1666,11 @@ export class Inspector {
 
     setDocumentLanguage(lang) {
         this._viewerOptions.language = lang;
+        // AMANA extension: notify parent window about document language change
+        window.parent.postMessage({
+            type: "ixbrl-viewer-document-language-changed",
+            language: lang
+        }, '*');
     }
 
     showValidationReport() {
