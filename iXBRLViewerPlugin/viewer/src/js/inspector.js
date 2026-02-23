@@ -248,6 +248,12 @@ export class Inspector {
             }
             const vuid = viewerUniqueId(docSetId, data['factId']);
             this.selectItem(vuid);
+        } else if (task == 'TABLE_HIGHLIGHT') {
+            this._viewer.highlightTables(data.on);
+        } else if (task == "CUSTOMIZE") {
+            for (const selector in data.styles) {
+                this._viewer.customize(selector, data.styles[selector]);
+            }
         }
         else {
             console.log("Not handling unsupported task message: " + jsonString);
