@@ -521,7 +521,7 @@ export class iXBRLViewer {
                                     },
                                 })
                                 .on('resizestart', () =>
-                                    $('#ixv').css({ "pointer-events": "none", "-moz-user-select": "none" })
+                                    $('#ixv').css({ "pointer-events": "none", "user-select": "none" })
                                 )
                                 .on('resizemove', (event) => {
                                     const target = event.target;
@@ -530,7 +530,7 @@ export class iXBRLViewer {
                                     $('#inspector').css('width', `${100 - w}%`);
                                 })
                                 .on('resizeend', (event) =>
-                                    $('#ixv').css({ "pointer-events": "auto", "-moz-user-select": "all" })
+                                    $('#ixv').css({ "pointer-events": "auto", "user-select": "" })
                                 );
                                 $('#ixv .loader').remove();
 

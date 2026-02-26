@@ -717,7 +717,7 @@ export class Viewer {
     showElement(e) {
         const ee = e.filter(':not(.ixbrl-no-highlight)').get(0);
         if (!this.isFullyVisible(ee)) {
-            ee.scrollIntoView({ block: "center", inline: "center" });
+            ee.scrollIntoView({ block: "center", inline: "nearest" });
         }
     }
 
