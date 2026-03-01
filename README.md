@@ -17,7 +17,7 @@ The AMANA Fork implements the additional features and improvements:
 * Implemented tooltips over highlighted facts.
 * Support CSS content-visibilty:auto by no longer using <iframe>, supports large PDF converted reports in Chrome.
 * Enhanced embedding of the Viewer into existing HTML pages.
-* Improved zooming and 'jump to next fact' compatibilty for Safari and Firefox.
+* Improved zooming and 'jump to next fact' compatibility for Safari and Firefox.
 * New click event for inline tags.
 
 The viewer project consists of two components:
