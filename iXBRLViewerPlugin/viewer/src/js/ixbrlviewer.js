@@ -271,6 +271,11 @@ export class iXBRLViewer {
                 .data("report-index", 0)
                 .appendTo(iframeContainer)[0];
 
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write("<!DOCTYPE html><html><head><title></title></head><body></body></html>");
+            doc.close();
+
             let docTitle = $('title', source).text();
             if (docTitle !== "") {
                 docTitle = `Inline Viewer - ${docTitle}`;
